@@ -1,0 +1,40 @@
+# This Dockerfile uses the px4io/px4-dev-simulation base image, which already includes Gazebo and PX4 dependencies. It  then installs additional packages required by ArduPilot and clones the ArduPilot repository. Finally, it sets up the necessary environment variables and launches Gazebo with the PX4 SITL.
+
+# Use a base image with Gazebo and PX4 dependencies
+FROM px4io/px4-dev-simulation-bionic:latest
+
+# Install additional packages and dependencies for ArduPilot
+RUN apt-get update && \
+    apt-get install -y \
+        libopencv-dev \
+        python-matplotlib \
+        python-serial \
+        python-wxgtk3.0 \
+        python-pip && \
+    rm -rf /var/lib/apt/lists/*
+
+# Create docker group and add a user to it
+RUN useradd -ms /bin/bash rreddy && \
+    groupadd docker && \
+    usermod -aG docker rreddy && \
+    newgrp docker
+
+# Install ArduPilot SITL
+RUN su -l rreddy & \
+    git clone https://github.com/ArduPilot/ardupilot.git && \
+    cd ardupilot && \
+    git submodule update --init --recursive && \
+    ./Tools/environment_install/install-prereqs-ubuntu.sh -y && \
+    ln -s /usr/bin/python2.7 /usr/bin/python && \
+    ln -s /ardupilot /root/ardupilot
+
+# Set environment variables for ArduPilot
+ENV PATH=/root/ardupilot/Tools/autotest:${PATH}
+ENV PATH=/root/ardupilot/Tools/autotest:${PATH}
+
+# Set the working directory
+WORKDIR /root/ardupilot
+
+# Launch Gazebo with PX4 SITL
+CMD source /opt/ros/$ROS_DISTRO/setup.bash && \
+    DONT_RUN=1 make px4_sitl_default gazebo
